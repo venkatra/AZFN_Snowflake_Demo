@@ -1,0 +1,234 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "KV-SECRET-SNOWSQL-USER-VAL": {
+            "type": "String",
+            "metadata": {
+                "description": "Snowflake service account."
+            }
+        },
+        "KV-SECRET-SNOWSQL-PASSWORD-VAL": {
+            "type": "String",
+            "defaultValue": "tst",
+            "metadata": {
+                "description": "Snowflake service account password."
+            }
+        },
+        "environment": {
+            "type": "string",
+            "defaultValue": "tst",
+            "allowedValues": [
+                "dev",
+                "tst",
+                "prd"
+            ],
+            "metadata": {
+                "description": "The environment onto which this template will get deployed."
+            }
+        }
+    },
+    "variables": {
+        "nameSuffix": "[uniqueString(resourceGroup().id ,resourceGroup().location)]",
+        "keyVaultName": "[concat('kvsnflk-', variables('nameSuffix'))]",
+        "storageAccount_sa4azservices_name": "[concat('sa4azsvcs', variables('nameSuffix'))]",
+        "serverfarms_ASP4azfun_name": "[concat('ASP4azf-azfnsnflk-', variables('nameSuffix'))]",
+        "azfunName": "[concat('azfn-SNFLKQRYFN-', variables('nameSuffix'))]",
+        "appConfigName": "[concat('appcfg-SNFLKQRYFN-', variables('nameSuffix'))]"
+
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('storageAccount_sa4azservices_name')]",
+            "comments": "Storage account meant to be used for service needs.",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "largeFileSharesState": "Disabled",
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [
+                    ],
+                    "ipRules": [
+                    ],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "enabled": true
+                        },
+                        "blob": {
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                },
+                "accessTier": "Hot"
+            }
+        },
+
+        {
+            "type": "Microsoft.KeyVault/vaults",
+            "apiVersion": "2016-10-01",
+            "name": "[variables('keyVaultName')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "sku": {
+                    "family": "A",
+                    "name": "Standard"
+                },
+                "tenantId": "[subscription().tenantId]",
+                "accessPolicies": [
+
+                ],
+                "enabledForDeployment": true,
+                "enabledForDiskEncryption": true,
+                "enabledForTemplateDeployment": true
+            }
+        },
+        {
+            "type": "Microsoft.KeyVault/vaults/secrets",
+            "apiVersion": "2016-10-01",
+            "name": "[concat(variables('keyVaultName'), '/SNOWSQL-PASSWORD')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+            ],
+            "properties": {
+                "value": "[parameters('KV-SECRET-SNOWSQL-PASSWORD-VAL')]",
+                "contentType": "password for snowflake user",
+                "attributes": {
+                    "enabled": true
+                }
+            }
+        },
+        {
+            "type": "Microsoft.KeyVault/vaults/secrets",
+            "apiVersion": "2016-10-01",
+            "name": "[concat(variables('keyVaultName'), '/SNOWSQL-USER')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+            ],
+            "properties": {
+                "value": "[parameters('KV-SECRET-SNOWSQL-USER-VAL')]",
+                "contentType": "snowflake user name",
+                "attributes": {
+                    "enabled": true
+                }
+            }
+        },
+
+        {
+            "type": "Microsoft.AppConfiguration/configurationStores",
+            "apiVersion": "2019-02-01-preview",
+            "name": "[variables('appConfigName')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+                "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('keyVaultName'), 'SNOWSQL-PASSWORD')]",
+                "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('keyVaultName'), 'SNOWSQL-USER')]"
+            ],
+            "identity": {
+                "type": "SystemAssigned"
+            }
+        },
+
+
+        {
+            "type": "Microsoft.Web/serverfarms",
+            "apiVersion": "2019-08-01",
+            "name": "[variables('serverfarms_ASP4azfun_name')]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "BusinessUnit": "IT",
+                "Environment": "[parameters('environment')]"
+            },
+            "sku": {
+                "name": "Y1",
+                "tier": "Dynamic",
+                "size": "Y1",
+                "family": "Y",
+                "capacity": 0
+            },
+            "kind": "functionapp",
+            "properties": {
+                "perSiteScaling": false,
+                "maximumElasticWorkerCount": 1,
+                "isSpot": false,
+                "reserved": false,
+                "isXenon": false,
+                "hyperV": false,
+                "targetWorkerCount": 0,
+                "targetWorkerSizeId": 0
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2019-08-01",
+            "name": "[variables('azfunName')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', variables('serverfarms_ASP4azfun_name'))]"
+            ],
+            "kind": "functionapp",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "enabled": true,
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('serverfarms_ASP4azfun_name'))]",
+                "siteConfig": {
+                    "appSettings": [
+
+                    ],
+                    "alwaysOn": "boolean",
+                    "ipSecurityRestrictions": [
+
+                    ]
+                }
+
+            },
+            "resources": [
+                {
+                    "apiVersion": "2018-11-01",
+                    "name": "appsettings",
+                    "type": "config",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Web/sites', variables('azfunName'))]",
+                        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccount_sa4azservices_name'))]"
+                    ],
+                    "properties": {
+                        "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=',variables('storageAccount_sa4azservices_name'),';AccountKey=',listkeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccount_sa4azservices_name')), '2015-05-01-preview').key1,';')]",
+                        "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING": "[concat('DefaultEndpointsProtocol=https;AccountName=',variables('storageAccount_sa4azservices_name'),';AccountKey=',listkeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccount_sa4azservices_name')), '2015-05-01-preview').key1,';')]",
+                        "WEBSITE_CONTENTSHARE": "azfnsnflk-sa4azservices-9d95",
+                        "FUNCTIONS_EXTENSION_VERSION": "~2",
+                        "FUNCTIONS_WORKER_RUNTIME": "node",
+                        "WEBSITE_ENABLE_SYNC_UPDATE_SITE": "true",
+                        "WEBSITE_NODE_DEFAULT_VERSION": "~10",
+                        "APP_CONFIG_URI": "[reference(variables('appConfigName'),'2019-02-01-preview','Full').properties.endpoint]"
+                    }
+                }
+            ]
+        }
+
+    ],
+    "outputs": {
+        "keyVaultName": {
+            "type": "string",
+            "value": "[variables('keyVaultName')]"
+        },
+        "appcfg-SNFLKQRYFN": {
+            "type": "object",
+            "value": "[reference(variables('appConfigName'),'2019-02-01-preview','Full')]"
+        }
+    }
+}
