@@ -24,9 +24,7 @@ The following parameters needs to be set on deployment
 ## Post deployment
 
 ### Defining keys
-Since the Azure App Config is still in preview, the ARM template does not have all the functionality of defining and configuring the key-values, KeyVault Secrets URI. Hence after the deployment the following steps needs to be done manually
-
-![Ref : AZ CLI commands for App Config](https://docs.microsoft.com/en-us/cli/azure/ext/appconfig/appconfig)
+Since the Azure App Config is still in preview, the ARM template does not have all the functionality of defining and configuring the key-values, KeyVault Secrets URI. Hence after the deployment the following steps needs to be done manually [Ref : AZ CLI commands for App Config](https://docs.microsoft.com/en-us/cli/azure/ext/appconfig/appconfig).
 
 The cli commands have been captured in the script 'arm/appConfigConfigureKeys.sh'; you need to update the PARAM (ex: PARAM_RG) with the
 appropriate value and execute the script.
