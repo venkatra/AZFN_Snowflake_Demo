@@ -142,28 +142,6 @@ _____
 ### ARM Template
 Please refer to this document [arm/deploy.md](arm/deploy.md).
 
-### Azure function Managed Identity
-The Azure function would need to integrate with the App Config and KeyVault, hence Managed Identity is enabled. This is handled in the ARM template definition for the function.
-
-![](images/azfn_managed_identity.png)
-
-### App Config URI for Azure function
-The Azure function would require the uri for the App Config. This needs to be configured in the Function application setting. 
-
-![](images/azfn_appconfiguration.png)
-
-The function would retrieve this via the environment variable _*APP_CONFIG_URI*_.
-
-### App Config access for Azure function
-In order for the Azure function read the configuration off the App Config, we would need to define the access policy, as shown in the below screen shot:
-
-![](images/azure_app_config_accesspolicy.png)
-
-### Key vault access policy for Azure function
-In order for the Azure function read the configuration off the key vault, we would need to define the access policy, as shown in the below screen shot:
-
-![](images/az_kv_accesspolicies.png)
-
 _____
 ### Developing Locally
 Since there is a need for connecting to various azure resources like KeyVault & AppConfig, when developing locally, you would need to create a [Service Principal](https://docs.microsoft.com/en-us/powershell/azure/create-azure-service-principal-azureps?view=azps-3.4.0). Once created, capture the output into a temporary note. Then you need to update the following properties in 'local.settings.json'
